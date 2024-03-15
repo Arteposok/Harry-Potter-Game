@@ -1,163 +1,82 @@
 import pygame as pg
-from os import path
-import tilemap as tm
+import random as rnd
 
 pg.init()
-WIDTH = 500
-HEIGHT = 500
-running = True
-win = pg.display.set_mode((WIDTH, HEIGHT))
+
+win = pg.display.set_mode((600, 500))
+
+pg.display.set_caption("welcome to the triwizard tournament")
 
 
-class Game:
-    def __init__(self, surface):
-        self.player = None
-        self.do = lambda: 0
-        self.win = surface
-        self.clock = pg.time.Clock()
-        self.fps = 30
-        self.first_level_map = tm.TileLoader(path.join("res", "first_lavel.csv"))
-        self.second_level_map = []
-        self.third_level_map = tm.TileLoader(path.join("res", "level_file.csv"))
-        self.background = tm.TileAdapter(self.win, self.first_level_map.parse()).process()
-        self.xb = 0
-        self.yb = 0
-        self.debug_mode = False
-        self.setup_fl()
-
-    def set_fps(self, fps):
-        self.fps = fps
-
-    def events(self, fun):
-        self.do = fun
-
-    def centered(self):
-        try:
-            for i in self.background:
-                for sprite in i:
-                    if sprite.x < 235 < sprite.x + sprite.w:
-                        if sprite.y < 235 < sprite.y + sprite.h:
-                            return sprite
-        except:
-            return Sprite(self.win, 0, 0, 50, 50, path="dirt.jpg")
-
-    def draw_and_update(self):
-        for x in self.background:
-            for sprite in x:
-                sprite.draw()
-        self.player.draw()
-        self.do()
-        self.clock.tick(self.fps)
-
-    def setup_fl(self):
-        self.background = tm.TileAdapter(self.win, self.third_level_map.parse()).process()
-        for i in self.background:
-            for sprite in i:
-                try:
-                    if sprite.path == "spawn.jpg":
-                        self.move(-sprite.x + 233, -sprite.y + 233)
-                except:
-                    pass
-
-    def move(self, x, y):
-        for i in self.background:
-            for sprite in i:
-                try:
-                    sprite.x += x
-                    sprite.y += y
-                except:
-                    pass
-
-    def item_at(self, x, y):
-        for i in self.background:
-            for sprite in i:
-                try:
-                    if sprite.x < x < sprite.x + sprite.w:
-                        if sprite.y < y < sprite.y + sprite.h:
-                            return sprite
-                except:
-                    pass
-
-
-class Sprite:
-    def __init__(self, sur, x, y, w, h, **kw):
-        self.win = sur
+class Button:
+    def __init__(self, par, x, y, w, h, text, event=lambda: 0, font_size=20, bold=False):
+        self.onclick = event
+        self.win = par
         self.x = x
         self.y = y
         self.w = w
         self.h = h
-        self.dir = path.join(path.dirname(__file__), "images")
-        self.path = kw["path"]
-        self.img = pg.image.load(path.join(self.dir, self.path)).convert()
-        self.img = pg.transform.scale(self.img, (self.w, self.h))
-        self.rect = None
+        self.text = pg.font.SysFont("Arial", font_size, bold=bold).render(text, False, (75, 75, 75))
+        self.rect = pg.Rect(x, y, w, h)
+        self.col = (80, 80, 80)
+        self.hitbox = pg.Rect(self.x - 5, self.y - 5, self.w + 10, self.h + 10)
+        self.last_state = False
+
+    def get_text_params(self):
+        px = (self.w - self.text.get_width()) / 2
+        py = (self.h - self.text.get_height()) / 2
+        return pg.Rect(self.x + px, self.y + py, self.text.get_width(), self.text.get_height())
 
     def draw(self):
-        self.rect = self.img.get_rect(x=self.x, y=self.y)
-        self.win.blit(self.img, self.rect)
+        self.hitbox = pg.Rect(self.x - 5, self.y - 5, self.w + 10, self.h + 10)
+        pg.draw.rect(self.win, self.col, pg.Rect(self.x - 5, self.y - 5, self.w + 10, self.h + 10))
+        pg.draw.rect(self.win, (140, 140, 140), pg.Rect(self.x, self.y, self.w, self.h))
+        win.blit(self.text, self.get_text_params())
+        if self.hitbox.collidepoint(pg.mouse.get_pos()):
+            self.col = (110, 110, 110)
+        else:
+            self.col = (80, 80, 80)
+        if self.hitbox.collidepoint(pg.mouse.get_pos()) and pg.mouse.get_pressed()[0]:
+            if pg.mouse.get_pressed()[0] != self.last_state and pg.mouse.get_pressed()[0]:
+                self.onclick()
+                self.last_state = True
+        if not pg.mouse.get_pressed()[0]:
+            self.last_state = False
 
-    def move(self, x, y):
-        self.x += x
-        self.y += y
-
-
-class Player(Sprite):
-    def __init__(self, sur, x, y, w, h, **kw):
-        super().__init__(sur, x, y, w, h, **kw)
-        self.img.set_colorkey(self.img.get_at((0, 0)))
-
-    def spell(self, spell):
-        pass
-
-
-game = Game(win)
-player = Player(win, 235, 235, 30, 30, path="harry.jpg")
-game.player = player
-angle = 0
+    def on_click(self, func):
+        self.onclick = func
 
 
-@game.events
-def check():
-    global angle
-    keys = pg.key.get_pressed()
-    # events are being checked here
-    if keys[pg.K_UP]:
-        for x in game.background:
-            for sprite in x:
-                sprite.y += 10
-                game.player.img = pg.transform.rotate(game.player.img, 360 - angle)
-                game.player.img = pg.transform.rotate(game.player.img, 0)
-                angle = 0
-    if keys[pg.K_DOWN]:
-        for x in game.background:
-            for sprite in x:
-                sprite.y += -10
-                game.player.img = pg.transform.rotate(game.player.img, 360 - angle)
-                game.player.img = pg.transform.rotate(game.player.img, 180)
-                angle = 180
-    if keys[pg.K_LEFT]:
-        for x in game.background:
-            for sprite in x:
-                sprite.x += 10
-                game.player.img = pg.transform.rotate(game.player.img, 360 - angle)
-                game.player.img = pg.transform.rotate(game.player.img, 90)
-                angle = 90
-    if keys[pg.K_RIGHT]:
-        for x in game.background:
-            for sprite in x:
-                sprite.x += -10
-                game.player.img = pg.transform.rotate(game.player.img, 360 - angle)
-                game.player.img = pg.transform.rotate(game.player.img, 270)
-                angle = 270
-    print(game.item_at(game.background[0][0].x+233, game.background[0][0].y+233).path)
+title = pg.font.SysFont("Arial", 30, bold=True).render("The Goblet Of Fire", False, (255, 40, 50))
+title = pg.transform.scale(title, (500, 100))
+bth = Button(win, (600 - 190) / 2, 170, 190, 80, "play", font_size=35, bold=False)
+symbol = pg.image.load("images/huray.jpg").convert()
+symbol = pg.transform.scale(symbol, (200, 200))
 
 
-# not used
+@bth.on_click
+def do():
+    global running
+    import game
+    running = False
+
+
+counter = 2
+running = True
+dirt = pg.image.load("images/dirt.jpg").convert()
+dirt = pg.transform.scale(dirt, (600, 500))
 while running:
-    for event in pg.event.get():
-        if event.type == pg.QUIT:
+    for i in pg.event.get():
+        if i.type == pg.QUIT:
             running = False
-    win.fill((255, 255, 255))
-    game.draw_and_update()
+    win.blit(dirt, (0, 0))
+    for i in range(0, 500, 10):
+        horizontal_line = pg.Surface((600, 2), pg.SRCALPHA)
+        horizontal_line.fill((255, 255, 255, 6))
+        win.blit(horizontal_line, (0, i - counter % 4 + rnd.randint(0, 3)))
+    counter += 1
+    win.blit(title, ((600 - title.get_width()) / 2, 50))
+    bth.draw()
+    win.blit(symbol, ((600 - symbol.get_width()) / 2, 270))
     pg.display.flip()
 pg.quit()

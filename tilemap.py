@@ -5,6 +5,10 @@ import csv
 
 class Sprite:
     def __init__(self, sur, x, y, w, h, **kw):
+        if "holdable" in kw.keys():
+            self.holdable = kw["holdable"]
+        else:
+            self.holdable = False
         self.win = sur
         self.x = x
         self.y = y
@@ -23,7 +27,6 @@ class Sprite:
     def move(self, x, y):
         self.x += x
         self.y += y
-
 
 class TileLoader:
     def __init__(self, filepath):

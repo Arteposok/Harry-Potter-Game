@@ -61,6 +61,20 @@ class Game:
 
         self.draw_and_update = do_stuff
 
+    def youlose(self):
+        def do_stuff():
+            global toggle_vhs
+            toggle_vhs = True
+            img = pg.image.load("images/youlose.jpg").convert()
+            img = pg.transform.scale(img, (200, 200))
+            img.set_colorkey("black")
+            heading = pg.font.SysFont("Arial", 50).render("HAHAHA YOU LOSE", False, (40, 40, 40))
+            rect = pg.Rect(0, 0, 500, 500)
+            pg.draw.rect(self.win, (90, 90, 90), rect)
+            win.blit(heading, ((500-heading.get_width())/2, 100))
+            win.blit(img, ((500 - img.get_width()) / 2, 250))
+
+        self.draw_and_update = do_stuff
 
     def centered(self):
         try:
@@ -76,11 +90,14 @@ class Game:
         for x in self.background:
             for sprite in x:
                 sprite.draw()
-        text = pg.font.SysFont("Arial", 20, bold=True).render(f"time left: {self.maxtime-self.time}", False, (255, 255, 0))
+        text = pg.font.SysFont("Arial", 20, bold=True).render(f"time left: {self.maxtime - self.time}", False,
+                                                              (255, 255, 0))
         self.win.blit(text, (400, 10))
         if self.timed % self.fps == 0:
             self.time += 1
             self.timed = 0
+        if self.maxtime - self.time <= 0:
+            self.youlose()
         self.timed += 1
         self.player.draw()
         self.do()

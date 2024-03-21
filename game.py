@@ -2,6 +2,7 @@ import pygame as pg
 from os import path
 import tilemap as tm
 import random as rnd
+from math import *
 
 pg.init()
 WIDTH = 500
@@ -12,6 +13,7 @@ pg.display.set_caption("harry potter game")
 ALLOWED_ITEMS = ("dirt.jpg", "brick.jpg", "stone.jpg", "spawn.jpg", "dragon_egg.jpg", "goblet.jpg")
 controls = []
 counter = 2
+lose = False
 toggle_vhs = False
 
 
@@ -71,7 +73,7 @@ class Game:
             heading = pg.font.SysFont("Arial", 50).render("HAHAHA YOU LOSE", False, (40, 40, 40))
             rect = pg.Rect(0, 0, 500, 500)
             pg.draw.rect(self.win, (90, 90, 90), rect)
-            win.blit(heading, ((500-heading.get_width())/2, 100))
+            win.blit(heading, ((500 - heading.get_width()) / 2, 100))
             win.blit(img, ((500 - img.get_width()) / 2, 250))
 
         self.draw_and_update = do_stuff
@@ -147,29 +149,6 @@ class Game:
                 except:
                     pass
 
-    def tile(self, x, y):
-        for i in self.background:
-            for sprite in i:
-                try:
-                    if sprite.x < x - 12.5 < sprite.x + sprite.w:
-                        if sprite.y < y - 12.5 < sprite.y + sprite.h:
-                            if not (sprite is None):
-                                return sprite
-                            else:
-                                return Sprite(self.win, 0, 0, 50, 50, path="planks.jpg")
-                except:
-                    pass
-        for sprite in self.mobs:
-            try:
-                if sprite.x < x - 12.5 < sprite.x + sprite.w:
-                    if sprite.y < y - 12.5 < sprite.y + sprite.h:
-                        if not (sprite is None):
-                            return sprite
-                        else:
-                            return Sprite(self.win, 0, 0, 50, 50, path="planks.jpg")
-            except:
-                pass
-
 
 class Sprite:
     def __init__(self, sur, x, y, w, h, **kw):
@@ -240,43 +219,85 @@ class Player(Sprite):
     def __init__(self, sur, x, y, w, h, **kw):
         super().__init__(sur, x, y, w, h, **kw)
         self.hold = ""
-        self.damage = rnd.randint(70, 100)
+        self.hp = 10
+        self.tick = 0
+        self.tick_rate = 100
         self.img.set_colorkey(self.img.get_at((0, 0)))
-
-    def spell(self, key, tile):
-        match key:
-            case "e":
-                self.col = (100, 170, 190)
-                self.lx = pg.mouse.get_pos()[0]
-                self.ly = pg.mouse.get_pos()[1]
-
-                pass
-            case "r":
-                pass
-            case "t":
-                pass
 
     def draw(self):
         super().draw()
+        if lose:
+            return
+        self.tick += 1
+        if self.hp < 10:
+            if self.tick % self.tick_rate == 0:
+                self.hp += 1
+        if self.hp <= 0:
+            game.youlose()
         if self.hold != "":
             self.img.blit(self.hold.img, self.hold.img.get_rect(x=10, y=10))
+        y = 10
+        x = (500 - 100) / 2
+        pg.draw.rect(self.win, (80, 80, 80), pg.Rect(x - 5, y - 5, 100 + 10, 20 + 10))
+        pg.draw.rect(self.win, (255 - game.player.hp * 10, game.player.hp * 20, 80),
+                     pg.Rect(x, y, game.player.hp * 10, 20))
 
 
 class Mob(Sprite):
-    def __init__(self, sur, x, y, w, h, **kw):
-        super().__init__(sur, x, y, w, h, **kw)
-        self.hold = ""
-        self.damage = rnd.randint(50, 100)
-        self.hp = rnd.randint(300, 500)
-        self.img.set_colorkey(self.img.get_at((0, 0)))
-
-    def spell(self, spell):
-        pass
+    def __init__(self, sur, x, y, w, h, path="spider.jpg"):
+        super().__init__(sur, x, y, w, h, path=path)
+        self.angle = 0
+        self.tick = 0
+        self.hp = 5
+        self.killed = False
+        self.tick_rate = game.fps
 
     def draw(self):
-        super().draw()
-        if self.hold != "":
-            self.img.blit(self.hold.img, self.hold.img.get_rect(x=10, y=10))
+        if not self.killed:
+            super().draw()
+            self.do_update()
+
+    def do_update(self):
+        self.tick += 1
+        self.tick_rate = game.fps / 2
+        if self.hp <= 0:
+            self.killed = True
+        if not self.killed:
+            x = floor(game.player.x - self.w / 2 - self.x)
+            y = floor(game.player.y - self.h / 2 - self.y)
+            self.x += x / 30
+            self.y += y / 30
+            if x > 20 and (y - 20 < 0 < y + 20):
+                self.img = pg.transform.rotate(self.img, self.angle * -1)
+                self.img = pg.transform.rotate(self.img, -90)
+                self.angle = -90
+            elif x < -20 and (y - 20 < 0 < y + 20):
+                self.img = pg.transform.rotate(self.img, self.angle * -1)
+                self.img = pg.transform.rotate(self.img, 90)
+                self.angle = 90
+            if y > 20 and (x - 20 < 0 < x + 20):
+                self.img = pg.transform.rotate(self.img, self.angle * -1)
+                self.img = pg.transform.rotate(self.img, 180)
+                self.angle = 180
+            elif y < -20 and (x - 20 < 0 < x + 20):
+                self.img = pg.transform.rotate(self.img, self.angle * -1)
+                self.img = pg.transform.rotate(self.img, 0)
+                self.angle = 0
+            else:
+                pass
+            if self.tick % self.tick_rate == 0:
+                pl = game.player
+                if self.x < pl.x - 12.5 < self.x + self.w:
+                    if self.y < pl.y - 12.5 < self.y + self.w:
+                        game.player.hp -= 1
+
+
+class Dragon(Mob):
+    def __init__(self, sur, x, y, w, h, path="dragon.jpg"):
+        super().__init__(sur, x, y, w, h, path)
+        self.img = pg.transform.rotate(self.img, 90)
+        self.tick_rate = 5
+        self.img.set_colorkey("white")
 
 
 game = Game(win)
@@ -297,6 +318,9 @@ def click():
 controls.append(test_button)
 angle = 0
 
+list = [False for i in range(200)]
+list.append(True)
+
 
 @game.events
 def check():
@@ -304,13 +328,12 @@ def check():
     keys = pg.key.get_pressed()
     # events are being checked here
     bpath = "none"
-    if keys[pg.K_UP]:
+    if keys[pg.K_w]:
         try:
             bpath = game.item_at(250, 250 - 10).path
         except:
             return
         if not (bpath in ALLOWED_ITEMS):
-            print(bpath)
             return
         for x in game.background:
             for sprite in x:
@@ -318,13 +341,12 @@ def check():
                 game.player.img = pg.transform.rotate(game.player.img, 360 - angle)
                 game.player.img = pg.transform.rotate(game.player.img, 0)
                 angle = 0
-    if keys[pg.K_DOWN]:
+    if keys[pg.K_s]:
         try:
             bpath = game.item_at(250, 250 + 30).path
         except:
             return
         if not (bpath in ALLOWED_ITEMS):
-            print(bpath)
             return
         for x in game.background:
             for sprite in x:
@@ -332,13 +354,12 @@ def check():
                 game.player.img = pg.transform.rotate(game.player.img, 360 - angle)
                 game.player.img = pg.transform.rotate(game.player.img, 180)
                 angle = 180
-    if keys[pg.K_LEFT]:
+    if keys[pg.K_a]:
         try:
             bpath = game.item_at(250 - 10, 250).path
         except:
             return
         if not (bpath in ALLOWED_ITEMS):
-            print(bpath)
             return
         for x in game.background:
             for sprite in x:
@@ -346,13 +367,12 @@ def check():
                 game.player.img = pg.transform.rotate(game.player.img, 360 - angle)
                 game.player.img = pg.transform.rotate(game.player.img, 90)
                 angle = 90
-    if keys[pg.K_RIGHT]:
+    if keys[pg.K_d]:
         try:
             bpath = game.item_at(250 + 30, 250).path
         except:
             return
         if not (bpath in ALLOWED_ITEMS):
-            print(bpath)
             return
         for x in game.background:
             for sprite in x:
@@ -367,24 +387,22 @@ def check():
             game.youwin()
     except:
         pass
-        spell_keys = list(game.spells.keys())
-        if event.type == pg.KEYDOWN:
-            print("fffffff")
-            k = event.key
-            item = game.tile(pg.mouse.get_pos()[0], pg.mouse.get_pos()[1])
 
 
-# not used
+game.background.append([Dragon(win, 0, 0, 200, 200)])
+
 while running:
     for event in pg.event.get():
         if event.type == pg.QUIT:
             running = False
-        spell_keys = list(game.spells.keys())
-        if event.type == pg.KEYDOWN:
-            print("clicked")
-            k = event.key
-            item = game.tile(pg.mouse.get_pos()[0], pg.mouse.get_pos()[1])
-            game.player.spell("e" if k == pg.K_e else "r" if k == pg.K_r else "t" if k == pg.K_t else "", item)
+            break
+        if event.type == pg.MOUSEBUTTONDOWN:
+            thing = game.item_at(pg.mouse.get_pos()[0], pg.mouse.get_pos()[1])
+            try:
+                thing.hp -= 1
+            except:
+                pass
+
     win.fill((255, 255, 255))
     game.draw_and_update()
     if toggle_vhs:
@@ -394,6 +412,12 @@ while running:
             win.blit(horizontal_line, (0, (i - counter % 2) + rnd.randint(0, 3)))
     for i in controls:
         i.draw()
+    if rnd.choice(list):
+        if game.current_level == 3:
+            x = rnd.randint(int(game.background[0][0].x), int(game.background[-1][-1].x))
+            y = rnd.randint(int(game.background[0][0].y), int(game.background[-1][-1].y))
+            print(game.background[0][0].x, game.background[-1][-1].x)
+            game.background.append([Mob(win, x, y, 50, 50)])
     counter += 1
     pg.display.flip()
 pg.quit()
